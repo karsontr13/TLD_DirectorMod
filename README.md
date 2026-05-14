@@ -13,7 +13,7 @@ Perfect for content creators, modders, and anyone who wants to take perfect trac
 * **Cinematic Mode:** Teleport seamlessly between your saved points to preview your shots.
 * **Batch Recording:** Let the mod automatically visit all your saved points and record high-quality videos one by one.
 * **Seamless Looping:** Built-in FFmpeg scripting can automatically crossfade the start and end of your clips to create perfect looping videos.
-* **Full Customization:** Choose your preferred video format (MP4 or WebM), target FPS, capture duration, and fade length directly via the `UserData/MelonPreferences.cfg` file.
+* **Full Customization:** Choose your preferred video format (MP4 or WebM), target FPS, capture duration, fade length, **video resolution** (from 720p up to 4K or Native), and **compression quality** (Low to Ultra) directly via the `UserData/MelonPreferences.cfg` file.
 * **LOD Enforcement:** Forces high-quality Level of Detail (LOD) models for the best visual output.
 
 ## 🎮 How to Use / Controls
