@@ -54,5 +54,6 @@ While in **Cinematic Mode** (F9), use the following hotkeys to start capturing f
 * **F12**: Record the *current* point as a *looping* video (crossfaded).
 * **F6**: Start a **Batch Record**. The mod will automatically visit *every* saved point, wait for cloth/wind physics to settle, record standard videos, and compile them.
 * **F10**: Start a **Batch Record** for *looping* videos.
+* **Backspace**: If you accidentally start recording or a batch capture, press this key to abort the operation immediately. (The mod will clean up temp files and stop capturing).
 
 *Note: The mod captures frames as PNGs first, then uses FFmpeg to convert them to your chosen format (MP4 or WebM) in the background. Please wait for the MelonLoader console to say "[FFmpeg] DONE" before closing the game.*
