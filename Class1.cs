@@ -1,16 +1,14 @@
 using Il2Cpp;
 using MelonLoader;
-using MelonLoader.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(TLD_DirectorMode.DirectorMain), "TLD Director Mode", "1.3.0", "KarsonTR")]
+[assembly: MelonInfo(typeof(TLD_DirectorMode.DirectorMain), "TLD Director Mode", "1.4.0", "KarsonTR")]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace TLD_DirectorMode
@@ -25,6 +23,8 @@ namespace TLD_DirectorMode
         private static bool isCapturing = false;
         private static bool isBatchMode = false;
         private static bool isConverting = false;
+        private static bool cancelRequested = false; // YENİ: İptal bayrağı
+        
         private static int currentPointIndex = 0;
         private static int currentShotId = 0;
 
@@ -46,9 +46,9 @@ namespace TLD_DirectorMode
         private static MelonPreferences_Entry<int> prefFPS;
         private static MelonPreferences_Entry<int> prefDuration;
         private static MelonPreferences_Entry<float> prefFadeDuration;
-        private static MelonPreferences_Entry<VideoFormat> prefFormat;
-        private static MelonPreferences_Entry<VideoResolution> prefResolution; // YENİ
-        private static MelonPreferences_Entry<VideoQuality> prefQuality; // YENİ
+        private static MelonPreferences_Entry<VideoFormat> prefFormat; 
+        private static MelonPreferences_Entry<VideoResolution> prefResolution; 
+        private static MelonPreferences_Entry<VideoQuality> prefQuality; 
 
         public override void OnInitializeMelon()
         {
@@ -62,10 +62,8 @@ namespace TLD_DirectorMode
             prefResolution = configCategory.CreateEntry<VideoResolution>("Resolution", VideoResolution.Res_1080p, "Video Resolution", "Output resolution (Native uses your screen size)");
             prefQuality = configCategory.CreateEntry<VideoQuality>("Quality", VideoQuality.High, "Video Quality", "Affects file size and visual fidelity");
 
-            MelonLogger.Msg("TLD Director Mode v1.3.0 Initialized! Quality settings loaded.");
-
-            // MelonLoader'a ayarları bekletmeden dosyaya yazmasını söylüyoruz:
-            MelonPreferences.Save();
+            MelonLogger.Msg("TLD Director Mode v1.4.0 Initialized! Quality settings loaded.");
+            MelonPreferences.Save(); 
         }
 
         private string GetCurrentSceneName()
@@ -76,6 +74,16 @@ namespace TLD_DirectorMode
 
         public override void OnUpdate()
         {
+            // YENİ: İptal Mekanizması Kontrolü
+            if ((isCapturing || isBatchMode) && Input.GetKeyDown(KeyCode.Backspace))
+            {
+                if (!cancelRequested)
+                {
+                    cancelRequested = true;
+                    MelonLogger.Warning("[Director Mode] Cancel requested! Aborting current operation...");
+                }
+            }
+
             if (Input.GetKeyDown(KeyCode.UpArrow))
             {
                 currentShotId++;
@@ -98,9 +106,9 @@ namespace TLD_DirectorMode
                 if (Input.GetKeyDown(KeyCode.F12)) StartCaptureFlow(currentPointIndex, true, false);
                 if (Input.GetKeyDown(KeyCode.F11)) StartCaptureFlow(currentPointIndex, false, false);
                 if (Input.GetKeyDown(KeyCode.F10)) StartCaptureFlow(0, true, true);
-                if (Input.GetKeyDown(KeyCode.F6)) StartCaptureFlow(0, false, true);
+                if (Input.GetKeyDown(KeyCode.F6))  StartCaptureFlow(0, false, true);
 
-                QualitySettings.lodBias = 100f;
+                QualitySettings.lodBias = 100f; 
             }
         }
 
@@ -134,14 +142,44 @@ namespace TLD_DirectorMode
 
             isBatchMode = batch;
             currentPointIndex = startIndex;
+            cancelRequested = false; // Akış başlarken iptal bayrağını sıfırla
             MelonCoroutines.Start(PrepareAndCaptureRoutine(isLooping));
         }
 
         private IEnumerator PrepareAndCaptureRoutine(bool isLooping)
         {
             GoToPoint(currentPointIndex);
-            yield return new WaitForSeconds(4.0f);
+            
+            // 4 Saniyelik bekleme süresinde de iptali dinle
+            float waitTimer = 4.0f;
+            while (waitTimer > 0)
+            {
+                if (cancelRequested)
+                {
+                    HandleCancelCleanup(null);
+                    yield break;
+                }
+                waitTimer -= Time.deltaTime;
+                yield return null;
+            }
+
             MelonCoroutines.Start(CaptureClipRoutine(isLooping));
+        }
+
+        private void HandleCancelCleanup(string clipDir)
+        {
+            Time.captureFramerate = 0; 
+            isCapturing = false;
+            isConverting = false;
+            isBatchMode = false;
+            cancelRequested = false;
+
+            if (!string.IsNullOrEmpty(clipDir) && Directory.Exists(clipDir))
+            {
+                try { Directory.Delete(clipDir, true); } catch { }
+            }
+            
+            MelonLogger.Error(">>> OPERATION CANCELLED BY USER <<<");
         }
 
         private void SaveCurrentPoint()
@@ -151,7 +189,7 @@ namespace TLD_DirectorMode
 
             string sceneName = GetCurrentSceneName();
             string dataLine = $"{cam.transform.position.x},{cam.transform.position.y},{cam.transform.position.z}|{cam.transform.rotation.eulerAngles.x},{cam.transform.rotation.eulerAngles.y},{cam.transform.rotation.eulerAngles.z}|{currentShotId}|{sceneName}\n";
-
+            
             File.AppendAllText(configPath, dataLine);
             MelonLogger.Msg($"[Director Mode] Point Shot_{currentShotId} Saved! (Scene: {sceneName})");
             currentShotId++;
@@ -163,11 +201,11 @@ namespace TLD_DirectorMode
             if (isCinematicMode)
             {
                 RefreshPointsList();
-                if (posList.Count == 0)
-                {
+                if (posList.Count == 0) 
+                { 
                     MelonLogger.Warning("[Director Mode] No points saved! Press F7 to save points first.");
-                    isCinematicMode = false;
-                    return;
+                    isCinematicMode = false; 
+                    return; 
                 }
 
                 originalPlayerPos = GameManager.GetPlayerTransform().position;
@@ -193,7 +231,7 @@ namespace TLD_DirectorMode
             if (pm == null) return;
 
             Vector3 targetPos = new Vector3(posList[index].x, posList[index].y - playerHeightOffset, posList[index].z);
-
+            
             if (magicPlatform == null)
             {
                 magicPlatform = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -219,10 +257,10 @@ namespace TLD_DirectorMode
         private IEnumerator CaptureClipRoutine(bool isLooping)
         {
             isCapturing = true;
-
+            
             int currentFPS = prefFPS.Value;
             int currentDuration = prefDuration.Value;
-            VideoFormat currentFormat = prefFormat.Value;
+            VideoFormat currentFormat = prefFormat.Value; 
             VideoResolution currentRes = prefResolution.Value;
             VideoQuality currentQual = prefQuality.Value;
 
@@ -240,7 +278,7 @@ namespace TLD_DirectorMode
             string nightSuffix = isNight ? "_Night" : "";
             string finalVideoName = $"Shot_{actualShotId}{nightSuffix}{extension}";
             string finalVideoPath = Path.Combine(sceneDir, finalVideoName);
-
+            
             string clipDir = Path.Combine(baseDir, $"Temp_{sceneName}_{actualShotId}_{DateTime.Now.Ticks}");
             Directory.CreateDirectory(clipDir);
 
@@ -248,6 +286,13 @@ namespace TLD_DirectorMode
 
             for (int f = 0; f < totalFrames; f++)
             {
+                // YENİ: Çekim esnasında iptal kontrolü
+                if (cancelRequested)
+                {
+                    HandleCancelCleanup(clipDir);
+                    yield break;
+                }
+
                 yield return new WaitForEndOfFrame();
                 Texture2D tex = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
                 tex.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0);
@@ -256,15 +301,30 @@ namespace TLD_DirectorMode
                 UnityEngine.Object.Destroy(tex);
             }
 
-            Time.captureFramerate = 0;
+            Time.captureFramerate = 0; 
             isCapturing = false;
+
+            if (cancelRequested)
+            {
+                HandleCancelCleanup(clipDir);
+                yield break;
+            }
+
             isConverting = true;
 
             Task.Run(() => ConvertToVideo(clipDir, finalVideoPath, isLooping, currentFPS, currentDuration, prefFadeDuration.Value, currentFormat, currentRes, currentQual));
 
             if (isBatchMode)
             {
-                while (isConverting) { yield return null; }
+                while (isConverting) { yield return null; } 
+
+                // YENİ: Çeviri işlemi bittikten sonra sıradaki noktaya geçmeden önce iptal edildiyse dur
+                if (cancelRequested)
+                {
+                    HandleCancelCleanup(null);
+                    yield break;
+                }
+
                 currentPointIndex++;
                 if (currentPointIndex < posList.Count)
                 {
@@ -295,12 +355,11 @@ namespace TLD_DirectorMode
                 string inputPattern = Path.Combine(clipDir, "frame_%05d.png");
                 float cutPoint = duration - fadeDuration;
                 var culture = System.Globalization.CultureInfo.InvariantCulture;
-
+                
                 string cutStr = cutPoint.ToString("F1", culture);
                 string durStr = duration.ToString("F1", culture);
                 string fadeStr = fadeDuration.ToString("F1", culture);
 
-                // Çözünürlük ayarını (Scale) belirle
                 string scaleStr = "";
                 switch (res)
                 {
@@ -308,11 +367,10 @@ namespace TLD_DirectorMode
                     case VideoResolution.Res_1080p: scaleStr = "scale=1920:-1"; break;
                     case VideoResolution.Res_1440p: scaleStr = "scale=2560:-1"; break;
                     case VideoResolution.Res_4K: scaleStr = "scale=3840:-1"; break;
-                    case VideoResolution.Native: scaleStr = "copy"; break; // Native ise boyutlandırma yapma
+                    case VideoResolution.Native: scaleStr = "copy"; break; 
                 }
 
-                // Kalite ayarını (CRF) belirle (Düşük CRF = Yüksek Kalite)
-                int crfValue = 18; // Default High
+                int crfValue = 18; 
                 switch (qual)
                 {
                     case VideoQuality.Low: crfValue = 28; break;
@@ -336,7 +394,7 @@ namespace TLD_DirectorMode
                 }
 
                 string filterArgs = string.IsNullOrEmpty(filterComplex) ? "" : $"-filter_complex \"{filterComplex}\" -map \"[out]\"";
-                if (string.IsNullOrEmpty(filterComplex) && !isLooping) filterArgs = ""; // Native ve No-Loop durumu
+                if (string.IsNullOrEmpty(filterComplex) && !isLooping) filterArgs = ""; 
 
                 string codecArgs = "";
                 if (format == VideoFormat.MP4)
@@ -345,8 +403,7 @@ namespace TLD_DirectorMode
                 }
                 else
                 {
-                    // WebM için CRF ölçeği biraz farklıdır, oranı koruyoruz
-                    int webmCrf = crfValue - 6;
+                    int webmCrf = crfValue - 6; 
                     if (webmCrf < 4) webmCrf = 4;
                     codecArgs = $"-c:v libvpx -crf {webmCrf} -b:v 0 -qmin 10 -qmax 50 -deadline good -cpu-used 0 -auto-alt-ref 1";
                 }
@@ -360,7 +417,7 @@ namespace TLD_DirectorMode
                 };
 
                 using (Process process = Process.Start(videoInfo)) { process.WaitForExit(); }
-
+                
                 if (Directory.Exists(clipDir)) Directory.Delete(clipDir, true);
                 MelonLogger.Msg($"[FFmpeg] DONE: Video saved successfully to {finalVideoPath}");
             }
