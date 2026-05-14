@@ -6,7 +6,23 @@ Perfect for content creators, modders, and anyone who wants to take perfect trac
 ## ⚠️ Requirements
 * **MelonLoader** installed for The Long Dark.
 * **FFmpeg**: This mod relies on FFmpeg to compile the captured PNG frames into a video. 
-  * Download `ffmpeg.exe` and place it directly inside your game's root directory (the same folder as `tld.exe`).
+* Download `ffmpeg.exe` and place it directly inside your game's root directory (the same folder as `tld.exe`).
+ 
+* ## ⚠️ Installation and Requirements (IMPORTANT)
+
+This mod strictly requires **FFmpeg** to compile the captured frames into a final video. Please follow the steps below carefully:
+
+**Mod Installation:**
+1. Ensure you have [MelonLoader](https://melonwiki.xyz/#/) installed for The Long Dark.
+2. Download the `TLD_DirectorMode.dll` file and place it inside your game's `Mods` folder.
+
+**FFmpeg Installation (Required):**
+1. Download the latest Windows release of FFmpeg. *(You can search for "FFmpeg download Windows" or download the "essentials" build from sites like gyan.dev/FFmpeg).*
+2. Open the downloaded `.zip` or `.7z` archive.
+3. Navigate into the `bin` folder inside the archive and find the **`ffmpeg.exe`** file.
+4. Extract and copy this **`ffmpeg.exe`** file **directly into the root folder of The Long Dark** (the same directory where `tld.exe` is located).
+
+*(If you do not place ffmpeg.exe in the correct folder, the mod will capture screenshots but will fail to compile them into a video!)*
 
 ## 🛠️ Features
 * **Save Camera Points:** Manually save exact camera positions and rotations around the map.
