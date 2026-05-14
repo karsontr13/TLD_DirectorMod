@@ -9,13 +9,15 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
-[assembly: MelonInfo(typeof(TLD_DirectorMode.DirectorMain), "TLD Director Mode", "1.1.0", "KarsonTR")]
+[assembly: MelonInfo(typeof(TLD_DirectorMode.DirectorMain), "TLD Director Mode", "1.2.0", "KarsonTR")]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace TLD_DirectorMode
 {
+    // Enum for output video format
+    public enum VideoFormat { WebM, MP4 }
+
     public class DirectorMain : MelonMod
     {
         private static bool isCinematicMode = false;
@@ -41,33 +43,39 @@ namespace TLD_DirectorMode
         private const float playerHeightOffset = 1.7f;
         private static GameObject magicPlatform;
 
-        // --- MELON PREFERENCES (KULLANICI AYARLARI) ---
+        // --- MELON PREFERENCES (USER SETTINGS) ---
         private static MelonPreferences_Category configCategory;
         private static MelonPreferences_Entry<int> prefFPS;
         private static MelonPreferences_Entry<int> prefDuration;
         private static MelonPreferences_Entry<float> prefFadeDuration;
+        private static MelonPreferences_Entry<VideoFormat> prefFormat;
 
         public override void OnInitializeMelon()
         {
             if (!Directory.Exists(baseDir)) Directory.CreateDirectory(baseDir);
 
-            // Ayar kategorisini ve öğelerini oluştur
+            // Create settings category and entries
             configCategory = MelonPreferences.CreateCategory("TLD_DirectorMode", "Director Mode Settings");
             prefFPS = configCategory.CreateEntry<int>("FPS", 24, "Capture FPS", "Video framerate (e.g., 24, 30, 60)");
             prefDuration = configCategory.CreateEntry<int>("Duration", 7, "Capture Duration (Seconds)", "How long each video should be");
             prefFadeDuration = configCategory.CreateEntry<float>("FadeDuration", 2.0f, "Loop Fade Duration (Seconds)", "Crossfade duration for looping videos");
 
-            MelonLogger.Msg("TLD Director Mode v1.1.0 Initialized! Settings loaded from UserData/MelonPreferences.cfg");
+            // Format Setting
+            prefFormat = configCategory.CreateEntry<VideoFormat>("Format", VideoFormat.MP4, "Video Format", "Choose between MP4 and WebM");
+
+            MelonLogger.Msg("TLD Director Mode v1.2.0 Initialized! Settings loaded from UserData/MelonPreferences.cfg");
         }
 
         private string GetCurrentSceneName()
         {
+            // Using full path to avoid namespace collision with Il2Cpp.SceneManager
             string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
             return sceneName.Replace("_SANDBOX", "").Replace("_DLC01", "").Replace("_WILDLIFE", "");
         }
 
         public override void OnUpdate()
         {
+            // Adjust Shot ID manually
             if (Input.GetKeyDown(KeyCode.UpArrow))
             {
                 currentShotId++;
@@ -79,12 +87,15 @@ namespace TLD_DirectorMode
                 MelonLogger.Msg($"[Director Mode] Target Shot ID: Shot_{currentShotId}");
             }
 
+            // Save current position and rotation
             if (Input.GetKeyDown(KeyCode.F7) && !isCapturing)
                 SaveCurrentPoint();
 
+            // Toggle Cinematic Mode
             if (Input.GetKeyDown(KeyCode.F9) && !isCapturing)
                 ToggleCinematicMode();
 
+            // Cinematic Mode Controls
             if (isCinematicMode && !isCapturing && !isConverting)
             {
                 if (Input.GetKeyDown(KeyCode.RightArrow)) NextPoint();
@@ -95,7 +106,7 @@ namespace TLD_DirectorMode
                 if (Input.GetKeyDown(KeyCode.F10)) StartCaptureFlow(0, true, true);
                 if (Input.GetKeyDown(KeyCode.F6)) StartCaptureFlow(0, false, true);
 
-                QualitySettings.lodBias = 100f;
+                QualitySettings.lodBias = 100f; // Force high quality LODs
             }
         }
 
@@ -135,7 +146,7 @@ namespace TLD_DirectorMode
         private IEnumerator PrepareAndCaptureRoutine(bool isLooping)
         {
             GoToPoint(currentPointIndex);
-            yield return new WaitForSeconds(4.0f);
+            yield return new WaitForSeconds(4.0f); // Wait for wind and cloth physics to settle
             MelonCoroutines.Start(CaptureClipRoutine(isLooping));
         }
 
@@ -191,6 +202,7 @@ namespace TLD_DirectorMode
 
             Vector3 targetPos = new Vector3(posList[index].x, posList[index].y - playerHeightOffset, posList[index].z);
 
+            // Create a magic platform to prevent falling
             if (magicPlatform == null)
             {
                 magicPlatform = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -217,9 +229,10 @@ namespace TLD_DirectorMode
         {
             isCapturing = true;
 
-            // Ayarlardan değerleri çek
+            // Read settings
             int currentFPS = prefFPS.Value;
             int currentDuration = prefDuration.Value;
+            VideoFormat currentFormat = prefFormat.Value;
             int totalFrames = currentFPS * currentDuration;
 
             Time.captureFramerate = currentFPS;
@@ -232,8 +245,11 @@ namespace TLD_DirectorMode
             if (!Directory.Exists(sceneDir)) Directory.CreateDirectory(sceneDir);
 
             string nightSuffix = isNight ? "_Night" : "";
-            string finalVideoName = $"Shot_{actualShotId}{nightSuffix}.webm";
-            string finalWebmPath = Path.Combine(sceneDir, finalVideoName);
+
+            // Determine file extension based on format type
+            string extension = currentFormat == VideoFormat.MP4 ? ".mp4" : ".webm";
+            string finalVideoName = $"Shot_{actualShotId}{nightSuffix}{extension}";
+            string finalVideoPath = Path.Combine(sceneDir, finalVideoName);
 
             string clipDir = Path.Combine(baseDir, $"Temp_{sceneName}_{actualShotId}_{DateTime.Now.Ticks}");
             Directory.CreateDirectory(clipDir);
@@ -254,7 +270,8 @@ namespace TLD_DirectorMode
             isCapturing = false;
             isConverting = true;
 
-            Task.Run(() => ConvertToVideo(clipDir, finalWebmPath, isLooping, currentFPS, currentDuration, prefFadeDuration.Value));
+            // Pass the format parameter to the conversion process
+            Task.Run(() => ConvertToVideo(clipDir, finalVideoPath, isLooping, currentFPS, currentDuration, prefFadeDuration.Value, currentFormat));
 
             if (isBatchMode)
             {
@@ -276,7 +293,7 @@ namespace TLD_DirectorMode
             }
         }
 
-        private void ConvertToVideo(string clipDir, string finalWebmPath, bool isLooping, int fps, int duration, float fadeDuration)
+        private void ConvertToVideo(string clipDir, string finalVideoPath, bool isLooping, int fps, int duration, float fadeDuration, VideoFormat format)
         {
             try
             {
@@ -302,18 +319,31 @@ namespace TLD_DirectorMode
                       $"[end][main]xfade=transition=fade:duration={fadeStr}:offset=0,scale=1280:-1[out]"
                     : "[0:v]scale=1280:-1[out]";
 
-                ProcessStartInfo webmInfo = new ProcessStartInfo
+                // Determine Codec parameters based on format
+                string codecArgs = "";
+                if (format == VideoFormat.MP4)
+                {
+                    // Best and most compatible settings for MP4 (H.264)
+                    codecArgs = "-c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p";
+                }
+                else
+                {
+                    // Settings for WebM (VP8)
+                    codecArgs = "-c:v libvpx -crf 12 -b:v 500K -qmin 10 -qmax 50 -deadline good -cpu-used 0 -auto-alt-ref 1 -lag-in-frames 24";
+                }
+
+                ProcessStartInfo videoInfo = new ProcessStartInfo
                 {
                     FileName = ffmpegPath,
-                    Arguments = $"-framerate {fps} -i \"{inputPattern}\" -filter_complex \"{filterComplex}\" -map \"[out]\" -c:v libvpx -crf 12 -b:v 500K -qmin 10 -qmax 50 -deadline good -cpu-used 0 -auto-alt-ref 1 -lag-in-frames 24 -y \"{finalWebmPath}\"",
+                    Arguments = $"-framerate {fps} -i \"{inputPattern}\" -filter_complex \"{filterComplex}\" -map \"[out]\" {codecArgs} -y \"{finalVideoPath}\"",
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
 
-                using (Process process = Process.Start(webmInfo)) { process.WaitForExit(); }
+                using (Process process = Process.Start(videoInfo)) { process.WaitForExit(); }
 
                 if (Directory.Exists(clipDir)) Directory.Delete(clipDir, true);
-                MelonLogger.Msg($"[FFmpeg] DONE: Video saved successfully to {finalWebmPath}");
+                MelonLogger.Msg($"[FFmpeg] DONE: Video saved successfully to {finalVideoPath}");
             }
             catch (Exception ex)
             {
