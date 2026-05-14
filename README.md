@@ -8,7 +8,7 @@ Perfect for content creators, modders, and anyone who wants to take perfect trac
 * **FFmpeg**: This mod relies on FFmpeg to compile the captured PNG frames into a video. 
 * Download `ffmpeg.exe` and place it directly inside your game's root directory (the same folder as `tld.exe`).
  
-* ## ⚠️ Installation and Requirements (IMPORTANT)
+* ## ⚠️ Installation (IMPORTANT)
 
 This mod strictly requires **FFmpeg** to compile the captured frames into a final video. Please follow the steps below carefully:
 
