@@ -1,4 +1,4 @@
-﻿using Il2Cpp;
+using Il2Cpp;
 using MelonLoader;
 using MelonLoader.Utils;
 using System;
@@ -59,12 +59,13 @@ namespace TLD_DirectorMode
             prefDuration = configCategory.CreateEntry<int>("Duration", 7, "Capture Duration (Seconds)", "How long each video should be");
             prefFadeDuration = configCategory.CreateEntry<float>("FadeDuration", 2.0f, "Loop Fade Duration (Seconds)", "Crossfade duration for looping videos");
             prefFormat = configCategory.CreateEntry<VideoFormat>("Format", VideoFormat.MP4, "Video Format", "Choose between MP4 and WebM");
-
-            // Çözünürlük ve Kalite ayarları
             prefResolution = configCategory.CreateEntry<VideoResolution>("Resolution", VideoResolution.Res_1080p, "Video Resolution", "Output resolution (Native uses your screen size)");
             prefQuality = configCategory.CreateEntry<VideoQuality>("Quality", VideoQuality.High, "Video Quality", "Affects file size and visual fidelity");
 
             MelonLogger.Msg("TLD Director Mode v1.3.0 Initialized! Quality settings loaded.");
+
+            // MelonLoader'a ayarları bekletmeden dosyaya yazmasını söylüyoruz:
+            MelonPreferences.Save();
         }
 
         private string GetCurrentSceneName()
