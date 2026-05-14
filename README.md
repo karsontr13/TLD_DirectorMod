@@ -2,6 +2,7 @@
 
 A powerful, cinematic camera and video capturing mod for *The Long Dark*, powered by MelonLoader. 
 Perfect for content creators, modders, and anyone who wants to take perfect tracking shots, screenshots, or seamless looping MP4/WebM videos directly inside the game!
+If you encounter any errors, please let me know.
 
 > ⚠️ **IMPORTANT: ABOUT IN-GAME LAG DURING RECORDING**
 > You may experience massive FPS drops or lag in your game while actively recording. **This is completely normal!** It happens because the mod is rapidly capturing high-quality frames per second (based on your configured FPS setting). 
